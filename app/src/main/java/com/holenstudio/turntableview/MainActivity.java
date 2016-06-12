@@ -13,8 +13,6 @@ public class MainActivity extends AppCompatActivity {
             , R.drawable.arrow
             , R.drawable.arrow
             , R.drawable.arrow
-            , R.drawable.arrow
-            , R.drawable.arrow
     };
 
     @Override

@@ -96,7 +96,7 @@ public class TurntableView extends View{
                 Bitmap icon = BitmapFactory.decodeResource(getResources(), mIconArray[i]);
                 iconLeft = mCenterX + iconRadius * Math.sin(0 - offsetDegree);
                 iconTop = mCenterY - iconRadius * Math.cos(0 - offsetDegree);
-                canvas.rotate(i * 360.0f / length, mCenterX, mCenterY);
+                canvas.rotate(360.0f / length, mCenterX, mCenterY);
                 canvas.drawBitmap(icon, (float)iconLeft, (float)iconTop, paint);
             }
         }
