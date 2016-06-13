@@ -19,5 +19,5 @@
         app:outerRadius="300.0"
         app:innerRadius="200.0"
         app:arrowSrc="@drawable/arrow"
-        app:arrowPosition="180"/>
+        app:arrowPosition="0"/>
 </RelativeLayout>
