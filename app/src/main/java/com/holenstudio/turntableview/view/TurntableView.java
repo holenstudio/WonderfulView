@@ -12,15 +12,19 @@ import android.util.Log;
 import android.view.MotionEvent;
 import android.view.VelocityTracker;
 import android.view.View;
+import android.widget.Toast;
 
 import com.holenstudio.turntableview.R;
 import com.holenstudio.turntableview.util.ImageUtil;
 
 /**
+ * 可转动的圆形自定义控件，类似于单反相机中调整参数的那个转盘。
  * Created by Holen on 2016/6/12.
  */
 public class TurntableView extends View {
     private final String TAG = "TurntableView";
+
+    private Context mContext;
     private float mOuterRadius;
     private float mInnerRadius;
     private float mCenterX;
@@ -39,6 +43,9 @@ public class TurntableView extends View {
     private float mLastX;
     private float mLastY;
     private VelocityTracker mVelocityTracker;
+    private boolean mIsRequiresUpdate = true;
+    private boolean mIsTouchUp = false;
+    private float acceleration = 0.0f;
 
     public TurntableView(Context context) {
         this(context, null);
@@ -51,11 +58,12 @@ public class TurntableView extends View {
     public TurntableView(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
 
-        TypedArray ta = context.obtainStyledAttributes(attrs, R.styleable.TurntableView);
-        mOuterRadius = ta.getFloat(R.styleable.TurntableView_outerRadius, 100);
-        mInnerRadius = ta.getFloat(R.styleable.TurntableView_innerRadius, 100);
-        mArrowPosition = ta.getInt(R.styleable.TurntableView_arrowPosition, 180);
-        mArrowSrc = ta.getResourceId(R.styleable.TurntableView_arrowSrc, R.drawable.arrow);
+        mContext = context;
+        TypedArray ta = mContext.obtainStyledAttributes(attrs, R.styleable.WonderfulView);
+        mOuterRadius = ta.getFloat(R.styleable.WonderfulView_outerRadius, 100);
+        mInnerRadius = ta.getFloat(R.styleable.WonderfulView_innerRadius, 100);
+        mArrowPosition = ta.getInt(R.styleable.WonderfulView_arrowPosition, 180);
+        mArrowSrc = ta.getResourceId(R.styleable.WonderfulView_arrowSrc, R.drawable.arrow);
         init();
     }
 
@@ -92,22 +100,66 @@ public class TurntableView extends View {
         mCenterY = getHeight() / 2;
         canvas.drawCircle(mCenterX, mCenterY, mOuterRadius, mPaint);
         canvas.drawCircle(mCenterX, mCenterY, mInnerRadius, mPaint);
-        Bitmap seletedBmp = BitmapFactory.decodeResource(getResources(), currentIcon);
-        canvas.drawBitmap(seletedBmp, mCenterX - seletedBmp.getWidth() / 2, mCenterY - seletedBmp.getHeight() / 2, mPaint);
-        //绘制箭头
+        drawArrow(canvas);
+        updateCanvas(canvas);
+
+        super.onDraw(canvas);
+    }
+
+    /**
+     * 绘制箭头
+     *
+     * @param canvas
+     */
+    private void drawArrow(Canvas canvas) {
         Bitmap arrow = BitmapFactory.decodeResource(getResources(), mArrowSrc);
         float arrowLeft = mCenterX - arrow.getWidth() / 2;
         float arrowTop = mCenterY - mOuterRadius - arrow.getHeight() * 3 / 4;
         canvas.rotate(mArrowPosition, mCenterX, mCenterY);
         canvas.drawBitmap(ImageUtil.rotatingImageView(180, arrow), arrowLeft, arrowTop, mPaint);
-        drawIcons(canvas);
-
-        super.onDraw(canvas);
     }
 
+    private void updateCanvas(Canvas canvas) {
+        drawIcons(canvas);
+        drawSelectedIcon(canvas);
+        Log.d(TAG, "acceleration" + acceleration);
+        if (!mIsTouchUp) {
+            return;
+        }
+        if (Math.abs(acceleration) > 1) {
+            if (acceleration > 0) {
+                acceleration -= 1;
+            }
+            else {
+                acceleration += 1;
+            }
+            invalidate();
+        } else {
+            for (int i = 0; i < mSelectedIconArray.length; i++) {
+                if (currentIcon == mSelectedIconArray[i]) {
+                    rotateDegree = 360 / mSelectedIconArray.length * i;
+                }
+            }
+            if (mIsRequiresUpdate) {
+                invalidate();
+                mIsRequiresUpdate = false;
+            }
+        }
+
+    }
+
+    /**
+     * 绘制外围的图标
+     *
+     * @param canvas
+     */
     private void drawIcons(Canvas canvas) {
         canvas.save();
         if (mIconArray != null && mIconArray.length > 0) {
+            if (Math.abs(acceleration) > 1) {
+                rotateDegree += acceleration;
+            }
+            Log.d(TAG, "rotateDegree" + rotateDegree);
             canvas.rotate((float) rotateDegree, mCenterX, mCenterY);
             int length = mIconArray.length;
             double iconLeft;
@@ -129,6 +181,17 @@ public class TurntableView extends View {
         canvas.restore();
     }
 
+    /**
+     * 绘制中心的图标,也就是箭头选中的图标
+     *
+     * @param canvas
+     */
+    private void drawSelectedIcon(Canvas canvas) {
+        zoomOutSelectedIcon();
+        Bitmap seletedBmp = BitmapFactory.decodeResource(getResources(), currentIcon);
+        canvas.drawBitmap(seletedBmp, mCenterX - seletedBmp.getWidth() / 2, mCenterY - seletedBmp.getHeight() / 2, mPaint);
+    }
+
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         obtainVelocityTracker(event);
@@ -139,6 +202,8 @@ public class TurntableView extends View {
             case MotionEvent.ACTION_DOWN:
                 mLastX = event.getX();
                 mLastY = event.getY();
+                mIsRequiresUpdate = true;
+                mIsTouchUp = false;
                 return true;
             case MotionEvent.ACTION_MOVE:
                 currentX = event.getX();
@@ -154,26 +219,29 @@ public class TurntableView extends View {
                 rotateDegree += Math.toDegrees(Math.asin(arcSinDegree));
                 rotateDegree %= 360;
                 Log.d(TAG, "rotateDegree = " + rotateDegree);
+                Log.d(TAG, "asdafa mLastX = " + mLastX + "mLastY = " + mLastY);
+                Log.d(TAG, "asdafa currentX = " + currentX + "currentY = " + currentY);
                 //将选择的icon放大
-                zoomOutSelectedIcon();
-                invalidate();
                 mLastX = event.getX();
                 mLastY = event.getY();
+                invalidate();
 
                 break;
             case MotionEvent.ACTION_UP:
-                for (int i = 0; i < mSelectedIconArray.length; i++) {
-                    if (currentIcon == mSelectedIconArray[i]) {
-                        rotateDegree = 360 / mSelectedIconArray.length * i;
-                    }
-                }
-                mVelocityTracker.computeCurrentVelocity(1000, 5000.0f);
+                mVelocityTracker.computeCurrentVelocity(1);
+                mIsTouchUp = true;
+                updateFlingView();
                 Log.d(TAG, "VelocityTracker:X=" + mVelocityTracker.getXVelocity() + ",Y=" + mVelocityTracker.getYVelocity());
                 return true;
 
         }
 
         return super.onTouchEvent(event);
+    }
+
+    private void updateFlingView() {
+        acceleration = mVelocityTracker.getXVelocity() * mVelocityTracker.getYVelocity();
+        invalidate();
     }
 
     private void obtainVelocityTracker(MotionEvent event) {

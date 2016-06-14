@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <declare-styleable name="TurntableView">
+    <declare-styleable name="WonderfulView">
         <attr name="outerRadius" format="float"/>
         <attr name="innerRadius" format="float"/>
         <attr name="arrowSrc" format="reference"/>
